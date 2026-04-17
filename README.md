@@ -75,6 +75,11 @@ The repository includes historical offline benchmark assets imported from the ea
 | Refusal appropriateness | 100% |
 | Hallucination rate | 0% |
 
+## Current Milestone
+
+- `v0.1.0`: first public portfolio release for the legal agentic knowledge platform
+- includes grounded RAG, legal query policy, single-agent and team-agent workflows, evaluation, observability, CI, and Docker assets
+
 ## Runtime Modes
 
 The project supports two practical modes:
@@ -213,8 +218,10 @@ QDRANT_COLLECTION_NAME=knowledge_chunks
 
 ## Additional Documentation
 
+- `CHANGELOG.md`
 - `docs/DEPLOYMENT.md`
 - `docs/LEGAL_CASE_STUDY.md`
+- `docs/PROJECT_WALKTHROUGH_ZH.md`
 
 ## Intended Use
 
