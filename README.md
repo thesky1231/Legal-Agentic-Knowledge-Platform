@@ -219,6 +219,7 @@ QDRANT_COLLECTION_NAME=knowledge_chunks
 ## Additional Documentation
 
 - `CHANGELOG.md`
+- `docs/CODE_READING_SESSION_1_ZH.md`
 - `docs/DEPLOYMENT.md`
 - `docs/LEGAL_CASE_STUDY.md`
 - `docs/PROJECT_WALKTHROUGH_ZH.md`
