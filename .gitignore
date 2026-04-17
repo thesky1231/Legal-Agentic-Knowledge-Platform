@@ -33,3 +33,14 @@ sqlite_root_test.db-journal
 
 # Personal files not intended for the public repo
 resume_source.pdf
+
+# Private study and job-search docs kept locally only
+docs/GITHUB_PUBLISHING.md
+docs/INTERVIEW_GUIDE.md
+docs/INTERVIEW_SCRIPT_ZH.md
+docs/PROJECT_FINALIZATION.md
+docs/RESUME_BULLETS.md
+docs/RESUME_REWRITE_ZH.md
+docs/WEI_XIANG_RESUME_FINAL_ZH.md
+docs/PROJECT_WALKTHROUGH_ZH.md
+docs/CODE_READING_SESSION_1_ZH.md
