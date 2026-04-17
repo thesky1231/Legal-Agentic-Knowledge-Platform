@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "case_id": "case-routing",
+      "tenant_id": "demo",
+      "question": "主模型失败或者限流时平台如何继续完成问答？",
+      "expected_keywords": ["fallback", "备用模型", "模型编排"],
+      "min_citations": 1,
+      "agent_mode": "single"
+    },
+    {
+      "case_id": "case-voice",
+      "tenant_id": "demo",
+      "question": "回答完成后，语音讲解链路怎么接入？",
+      "expected_keywords": ["TTS", "A2F", "讲解脚本"],
+      "min_citations": 1,
+      "agent_mode": "single"
+    },
+    {
+      "case_id": "case-team",
+      "tenant_id": "demo",
+      "question": "多 Agent 模式下平台如何完成检索、审核和讲解？",
+      "expected_keywords": ["Agent", "retrieve", "讲解"],
+      "min_citations": 1,
+      "agent_mode": "team"
+    }
+  ]
+}
