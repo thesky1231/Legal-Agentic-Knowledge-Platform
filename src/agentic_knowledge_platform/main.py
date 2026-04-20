@@ -7,16 +7,21 @@ from uuid import uuid4
 from agentic_knowledge_platform.container import ServiceContainer, build_container
 from agentic_knowledge_platform.core.logging import configure_logging, log_event
 from agentic_knowledge_platform.core.serialization import to_dict
+from agentic_knowledge_platform.demo_ui import load_demo_sample, render_demo_page
+from agentic_knowledge_platform.showcase_ui import render_showcase_page
 from agentic_knowledge_platform.types import AgentRequest, DocumentIngestRequest
 
 try:
     from fastapi import FastAPI, Header, HTTPException, Request
-    from fastapi.responses import PlainTextResponse
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import HTMLResponse, PlainTextResponse
 except ModuleNotFoundError:  # pragma: no cover - expected in the current sandbox.
     FastAPI = None
     Header = None
     HTTPException = RuntimeError
     Request = None
+    CORSMiddleware = None
+    HTMLResponse = None
     PlainTextResponse = None
 
 
@@ -26,6 +31,19 @@ def create_app(container: ServiceContainer | None = None):
 
     services = container or build_container()
     app = FastAPI(title=services.settings.service_name, version="0.1.0")
+    if CORSMiddleware is not None:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[
+                "http://127.0.0.1:5173",
+                "http://localhost:5173",
+                "http://127.0.0.1:4173",
+                "http://localhost:4173",
+            ],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     logger = configure_logging(services.settings.log_level)
     allowed_api_keys = {
         item.strip() for item in services.settings.api_keys.split(",") if item.strip()
@@ -107,6 +125,51 @@ def create_app(container: ServiceContainer | None = None):
             "vector_store_backend": services.settings.vector_store_backend,
             "run_store_backend": services.settings.run_store_backend,
             "api_auth_enabled": services.settings.api_auth_enabled,
+        }
+
+    @app.get("/", response_class=HTMLResponse)
+    def showcase_page() -> HTMLResponse:
+        return HTMLResponse(render_showcase_page(services.settings.service_name))
+
+    @app.get("/demo", response_class=HTMLResponse)
+    def demo_page() -> HTMLResponse:
+        return HTMLResponse(render_demo_page(services.settings.service_name))
+
+    @app.post("/demo/bootstrap")
+    @app.post("/showcase/bootstrap")
+    def bootstrap_demo(
+        force: bool = False,
+    ) -> dict[str, Any]:
+        sample = load_demo_sample()
+        if force:
+            fresh_container = build_container(services.settings)
+            services.vector_store = fresh_container.vector_store
+            services.knowledge_base.vector_store = fresh_container.vector_store
+            services.knowledge_base.documents = fresh_container.knowledge_base.documents
+            services.knowledge_base.chunks_by_document = fresh_container.knowledge_base.chunks_by_document
+        existing = [
+            item
+            for item in services.knowledge_base.list_documents(tenant_id=sample["tenant_id"])
+        ]
+        if existing:
+            return {
+                "ready": True,
+                "seeded": False,
+                "document_count": len(existing),
+            }
+        request = DocumentIngestRequest(
+            title=sample["title"],
+            content=sample["content"],
+            source=sample["source"],
+            modality=sample["modality"],
+            tenant_id=sample["tenant_id"],
+        )
+        result = services.knowledge_base.ingest(request)
+        return {
+            "ready": True,
+            "seeded": True,
+            "document_id": result.document.document_id,
+            "chunk_count": len(result.chunks),
         }
 
     @app.get("/ops/overview")

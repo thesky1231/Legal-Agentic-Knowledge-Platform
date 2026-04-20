@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #201b18;
+  background: #faf6ef;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+::selection {
+  background: rgba(34, 56, 46, 0.14);
+}
+
+.glass-panel {
+  @apply border border-stone-200/70 bg-white/80 shadow-panel backdrop-blur-xl;
+}
