@@ -2,7 +2,7 @@
 
 All notable changes to this repository will be documented in this file.
 
-The format is intentionally lightweight and focused on public portfolio milestones.
+The format is intentionally lightweight and focused on public release milestones.
 
 ## [0.1.0] - 2026-04-17
 
@@ -21,4 +21,4 @@ The format is intentionally lightweight and focused on public portfolio mileston
 ### Notes
 
 - The legal benchmark figures in this repository are offline evaluation snapshots, not online production metrics.
-- This release is the first public portfolio version intended for backend, RAG, and agent engineering interviews.
+- This release is the first public version intended to demonstrate backend, RAG, and agent system design.

@@ -4,7 +4,7 @@
 
 A Python backend project that turns legal and enterprise documents into a grounded, auditable, agent-driven knowledge service.
 
-This repository focuses on the parts that usually separate a portfolio demo from a production-aware backend:
+This repository focuses on the parts that usually separate a prototype from a production-aware backend:
 
 - long-document parsing and structure-aware ingestion
 - grounded RAG with citations and refusal control
@@ -77,7 +77,7 @@ The repository includes historical offline benchmark assets imported from the ea
 
 ## Current Milestone
 
-- `v0.1.0`: first public portfolio release for the legal agentic knowledge platform
+- `v0.1.0`: first public release of the legal agentic knowledge platform
 - includes grounded RAG, legal query policy, single-agent and team-agent workflows, evaluation, observability, CI, and Docker assets
 
 ## Runtime Modes
@@ -86,7 +86,7 @@ The project supports two practical modes:
 
 ### 1. Offline demo mode
 
-Useful for local walkthroughs and interviews.
+Useful for local exploration and debugging.
 
 - standard-library-first core flow
 - local hashing embeddings
@@ -224,7 +224,7 @@ QDRANT_COLLECTION_NAME=knowledge_chunks
 
 ## Intended Use
 
-This repository is intended as a serious backend portfolio project for AI application engineering roles, especially positions involving:
+This repository is intended as a reference backend project for AI application systems, especially work involving:
 
 - RAG and knowledge systems
 - agent orchestration
