@@ -10,6 +10,10 @@ python scripts/demo_cli.py
 python scripts/demo_showcase.py
 ```
 
+The runnable demo scripts now ingest:
+
+- `examples/legal/legal_assistant_handbook.md`
+
 This mode uses:
 
 - `MODEL_PROVIDER=stub`
@@ -24,6 +28,8 @@ Build and run the service:
 ```bash
 docker compose up --build
 ```
+
+This is the fastest reproducible deployment path for outside users.
 
 Once the service starts, open:
 

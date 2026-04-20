@@ -16,11 +16,11 @@ from agentic_knowledge_platform.types import AgentRequest, DocumentIngestRequest
 class AgentWorkflowTests(unittest.TestCase):
     def test_agent_pipeline_can_generate_voice_job(self) -> None:
         container = build_container()
-        sample_path = ROOT / "examples" / "employee_handbook.md"
+        sample_path = ROOT / "examples" / "legal" / "legal_assistant_handbook.md"
         content = sample_path.read_text(encoding="utf-8")
         container.knowledge_base.ingest(
             DocumentIngestRequest(
-                title="企业知识库 Agent 平台交付手册",
+                title="刑事法律知识助手示例手册",
                 content=content,
                 source=str(sample_path),
             )
@@ -28,7 +28,7 @@ class AgentWorkflowTests(unittest.TestCase):
 
         response = container.agent.run(
             AgentRequest(
-                query="请解释从检索到语音讲解的整条链路。",
+                query="请解释语音讲解链路如何接入法律问答流程。",
                 speak_response=True,
             )
         )

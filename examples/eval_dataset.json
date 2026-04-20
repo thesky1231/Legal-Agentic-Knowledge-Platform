@@ -1,28 +1,32 @@
 {
   "cases": [
     {
-      "case_id": "case-routing",
+      "case_id": "case-refusal",
       "tenant_id": "demo",
-      "question": "主模型失败或者限流时平台如何继续完成问答？",
-      "expected_keywords": ["fallback", "备用模型", "模型编排"],
+      "question": "如果只有聊天记录，能不能直接认定合同诈骗？",
+      "expected_keywords": ["证据不足", "保守回答策略"],
       "min_citations": 1,
-      "agent_mode": "single"
+      "agent_mode": "single",
+      "expected_question_type": "should_refuse",
+      "should_refuse": true
     },
     {
-      "case_id": "case-voice",
+      "case_id": "case-confusing",
       "tenant_id": "demo",
-      "question": "回答完成后，语音讲解链路怎么接入？",
-      "expected_keywords": ["TTS", "A2F", "讲解脚本"],
+      "question": "请比较抢劫和抢夺的区别。",
+      "expected_keywords": ["暴力", "胁迫", "公然夺取"],
       "min_citations": 1,
-      "agent_mode": "single"
+      "agent_mode": "single",
+      "expected_question_type": "confusing"
     },
     {
       "case_id": "case-team",
       "tenant_id": "demo",
-      "question": "多 Agent 模式下平台如何完成检索、审核和讲解？",
-      "expected_keywords": ["Agent", "retrieve", "讲解"],
+      "question": "请比较非法拘禁和绑架的区别，并说明多 Agent 审核会检查什么。",
+      "expected_keywords": ["非法拘禁", "绑架", "grounded"],
       "min_citations": 1,
-      "agent_mode": "team"
+      "agent_mode": "team",
+      "expected_question_type": "confusing"
     }
   ]
 }

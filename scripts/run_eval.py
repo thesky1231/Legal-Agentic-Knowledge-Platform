@@ -16,11 +16,11 @@ from agentic_knowledge_platform.types import DocumentIngestRequest
 
 def main() -> None:
     container = build_container()
-    handbook_path = ROOT / "examples" / "employee_handbook.md"
+    handbook_path = ROOT / "examples" / "legal" / "legal_assistant_handbook.md"
     content = handbook_path.read_text(encoding="utf-8")
     container.knowledge_base.ingest(
         DocumentIngestRequest(
-            title="企业知识库 Agent 平台交付手册",
+            title="刑事法律知识助手示例手册",
             content=content,
             source=str(handbook_path),
             tenant_id="demo",

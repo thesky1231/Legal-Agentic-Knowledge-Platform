@@ -16,11 +16,11 @@ from agentic_knowledge_platform.types import DocumentIngestRequest
 class RagTests(unittest.TestCase):
     def setUp(self) -> None:
         self.container = build_container()
-        sample_path = ROOT / "examples" / "employee_handbook.md"
+        sample_path = ROOT / "examples" / "legal" / "legal_assistant_handbook.md"
         self.content = sample_path.read_text(encoding="utf-8")
         self.container.knowledge_base.ingest(
             DocumentIngestRequest(
-                title="企业知识库 Agent 平台交付手册",
+                title="刑事法律知识助手示例手册",
                 content=self.content,
                 source=str(sample_path),
                 modality="markdown",
@@ -28,10 +28,10 @@ class RagTests(unittest.TestCase):
         )
 
     def test_grounded_answer_contains_citations(self) -> None:
-        answer = self.container.knowledge_base.answer("主模型限流以后系统如何 fallback？")
+        answer = self.container.knowledge_base.answer("请比较抢劫和抢夺的区别。")
         self.assertTrue(answer.grounded)
         self.assertGreaterEqual(len(answer.citations), 1)
-        self.assertIn("fallback", answer.answer.lower())
+        self.assertIn("暴力", answer.answer)
 
     def test_unknown_question_is_rejected(self) -> None:
         answer = self.container.knowledge_base.answer("公司年假有多少天？")

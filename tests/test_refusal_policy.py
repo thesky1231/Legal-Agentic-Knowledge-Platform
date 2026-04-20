@@ -16,18 +16,18 @@ from agentic_knowledge_platform.types import DocumentIngestRequest
 class RefusalPolicyTests(unittest.TestCase):
     def test_should_refuse_question_returns_conservative_answer(self) -> None:
         container = build_container()
-        content = (ROOT / "examples" / "employee_handbook.md").read_text(encoding="utf-8")
+        content = (ROOT / "examples" / "legal" / "legal_assistant_handbook.md").read_text(encoding="utf-8")
         container.knowledge_base.ingest(
             DocumentIngestRequest(
-                title="企业知识库 Agent 平台交付手册",
+                title="刑事法律知识助手示例手册",
                 content=content,
-                source="employee_handbook.md",
+                source="legal_assistant_handbook.md",
                 tenant_id="demo",
             )
         )
 
         result = container.knowledge_base.answer(
-            "能不能直接判断这个平台一定适合所有公司的生产环境？",
+            "如果只有聊天记录，能不能直接认定合同诈骗？",
             tenant_id="demo",
         )
 

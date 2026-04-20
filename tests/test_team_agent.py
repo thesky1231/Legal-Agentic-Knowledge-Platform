@@ -16,11 +16,11 @@ from agentic_knowledge_platform.types import AgentRequest, DocumentIngestRequest
 class TeamAgentTests(unittest.TestCase):
     def test_team_agent_adds_review_step_and_summary(self) -> None:
         container = build_container()
-        sample_path = ROOT / "examples" / "employee_handbook.md"
+        sample_path = ROOT / "examples" / "legal" / "legal_assistant_handbook.md"
         content = sample_path.read_text(encoding="utf-8")
         container.knowledge_base.ingest(
             DocumentIngestRequest(
-                title="企业知识库 Agent 平台交付手册",
+                title="刑事法律知识助手示例手册",
                 content=content,
                 source=str(sample_path),
             )
@@ -28,7 +28,7 @@ class TeamAgentTests(unittest.TestCase):
 
         response = container.team_agent.run(
             AgentRequest(
-                query="请解释多 Agent 如何分工完成检索、审核和讲解。",
+                query="请比较抢劫和抢夺的区别，并说明多 Agent 如何分工完成检索、审核和讲解。",
                 speak_response=True,
             )
         )

@@ -16,12 +16,12 @@ from agentic_knowledge_platform.types import AgentRequest, DocumentIngestRequest
 
 def main() -> None:
     container = build_container()
-    sample_path = ROOT / "examples" / "employee_handbook.md"
+    sample_path = ROOT / "examples" / "legal" / "legal_assistant_handbook.md"
     content = sample_path.read_text(encoding="utf-8")
 
     ingestion = container.knowledge_base.ingest(
         DocumentIngestRequest(
-            title="企业知识库 Agent 平台交付手册",
+            title="刑事法律知识助手示例手册",
             content=content,
             source=str(sample_path),
             modality="markdown",
@@ -32,7 +32,7 @@ def main() -> None:
 
     response = container.agent.run(
         AgentRequest(
-            query="如果主模型限流了，平台会怎么保证回答链路继续工作？顺便说明语音讲解是怎么接进去的。",
+            query="如果只有聊天记录，能不能直接认定合同诈骗？如果需要讲给用户听，语音讲解链路会怎么接入？",
             speak_response=True,
             tenant_id="demo",
         )
@@ -40,7 +40,7 @@ def main() -> None:
     container.run_store.save(
         workflow="demo_cli_single",
         request=AgentRequest(
-            query="如果主模型限流了，平台会怎么保证回答链路继续工作？顺便说明语音讲解是怎么接进去的。",
+            query="如果只有聊天记录，能不能直接认定合同诈骗？如果需要讲给用户听，语音讲解链路会怎么接入？",
             speak_response=True,
             tenant_id="demo",
         ),
@@ -49,7 +49,7 @@ def main() -> None:
 
     team_response = container.team_agent.run(
         AgentRequest(
-            query="请用多 Agent 视角说明这个平台如何做检索、审核和讲解。",
+            query="请比较抢劫和抢夺的区别，并说明多 Agent 模式会怎样审核回答。",
             speak_response=False,
             tenant_id="demo",
         )
@@ -57,7 +57,7 @@ def main() -> None:
     container.run_store.save(
         workflow="demo_cli_team",
         request=AgentRequest(
-            query="请用多 Agent 视角说明这个平台如何做检索、审核和讲解。",
+            query="请比较抢劫和抢夺的区别，并说明多 Agent 模式会怎样审核回答。",
             speak_response=False,
             tenant_id="demo",
         ),

@@ -16,17 +16,17 @@ from agentic_knowledge_platform.types import AgentRequest, DocumentIngestRequest
 class RunStoreTests(unittest.TestCase):
     def test_run_store_persists_saved_runs(self) -> None:
         container = build_container()
-        sample_path = ROOT / "examples" / "employee_handbook.md"
+        sample_path = ROOT / "examples" / "legal" / "legal_assistant_handbook.md"
         content = sample_path.read_text(encoding="utf-8")
         container.knowledge_base.ingest(
             DocumentIngestRequest(
-                title="企业知识库 Agent 平台交付手册",
+                title="刑事法律知识助手示例手册",
                 content=content,
                 source=str(sample_path),
             )
         )
 
-        request = AgentRequest(query="主模型失败时如何 fallback？", speak_response=False)
+        request = AgentRequest(query="请比较抢劫和抢夺的区别。", speak_response=False)
         response = container.agent.run(request)
         record = container.run_store.save(workflow="unit_test", request=request, response=response)
         runs = container.run_store.list_runs(limit=5)

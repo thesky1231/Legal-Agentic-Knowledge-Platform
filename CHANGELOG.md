@@ -4,6 +4,19 @@ All notable changes to this repository will be documented in this file.
 
 The format is intentionally lightweight and focused on public release milestones.
 
+## [0.1.1] - 2026-04-21
+
+### Added
+
+- Legal-domain runnable demo document under `examples/legal/legal_assistant_handbook.md`.
+- Release workflow that creates GitHub Releases from pushed tags.
+- Public release and deployment guide clarifying how tagged releases and local deployment fit together.
+
+### Changed
+
+- Demo scripts now ingest a legal-domain sample document instead of the earlier generic handbook sample.
+- Evaluation cases now exercise refusal control and legal distinction questions.
+
 ## [0.1.0] - 2026-04-17
 
 ### Added

@@ -48,6 +48,7 @@ These values come from the imported reference files under `examples/legal/`.
 - The answer layer can trigger conservative refusal or low-confidence fallback behavior instead of forcing an unsafe direct answer.
 - The evaluation loader now accepts both the platform-native dataset schema and the older legal project list-style schema.
 - Agent responses now expose `question_type`, `confidence`, and `refusal_triggered`, which makes policy behavior visible in API responses, demos, and audit logs.
+- The public demo scripts now ingest a legal-domain sample document instead of the earlier generic handbook sample, which keeps the runnable path aligned with the legal assistant story.
 
 ## How To Tell The Story In Interviews
 

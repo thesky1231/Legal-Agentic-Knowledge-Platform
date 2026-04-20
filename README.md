@@ -79,6 +79,7 @@ The repository includes historical offline benchmark assets imported from the ea
 
 - `v0.1.0`: first public release of the legal agentic knowledge platform
 - includes grounded RAG, legal query policy, single-agent and team-agent workflows, evaluation, observability, CI, and Docker assets
+- `v0.1.1`: aligns the runnable demo with the legal-domain story and adds automated GitHub Releases on tags
 
 ## Runtime Modes
 
@@ -192,8 +193,11 @@ QDRANT_COLLECTION_NAME=knowledge_chunks
 ```text
 .
 ├─ examples/
-│  ├─ employee_handbook.md
+│  ├─ eval_dataset.json
 │  └─ legal/
+│     ├─ legal_assistant_handbook.md
+│     ├─ answer_eval_dataset.json
+│     └─ retrieval_eval_dataset.json
 ├─ scripts/
 │  ├─ demo_cli.py
 │  ├─ demo_showcase.py
@@ -221,6 +225,7 @@ QDRANT_COLLECTION_NAME=knowledge_chunks
 - `CHANGELOG.md`
 - `docs/DEPLOYMENT.md`
 - `docs/LEGAL_CASE_STUDY.md`
+- `docs/RELEASES.md`
 
 ## Intended Use
 
