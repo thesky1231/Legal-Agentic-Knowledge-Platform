@@ -13,6 +13,7 @@ from agentic_knowledge_platform.services.openai_compatible import (
     OpenAICompatibleEmbeddingService,
     OpenAICompatibleModelClient,
 )
+from agentic_knowledge_platform.services.ollama import OllamaModelClient
 from agentic_knowledge_platform.services.vector_store import QdrantRestVectorStore
 from agentic_knowledge_platform.types import ChunkRecord, ModelRequest
 
@@ -43,6 +44,23 @@ class FakeQdrantStore(QdrantRestVectorStore):
 
 
 class RemoteAdapterTests(unittest.TestCase):
+    def test_ollama_model_client_reads_generate_response(self) -> None:
+        client = OllamaModelClient(
+            name="primary-router",
+            model="qwen2.5:7b",
+            base_url="http://localhost:11434",
+            supported_tasks={"qa"},
+            timeout_seconds=5,
+            temperature=0.0,
+        )
+        client.http = FakeHttpClient([{"response": "Grounded answer from ollama."}])
+
+        output = client.generate(ModelRequest(task="qa", prompt="How is fallback handled?", context_blocks=["Use citations."]))
+
+        self.assertEqual(output, "Grounded answer from ollama.")
+        self.assertEqual(client.http.calls[0][1], "/api/generate")
+        self.assertEqual(client.http.calls[0][2]["model"], "qwen2.5:7b")
+
     def test_openai_compatible_model_client_parses_responses_output(self) -> None:
         client = OpenAICompatibleModelClient(
             name="primary-router",

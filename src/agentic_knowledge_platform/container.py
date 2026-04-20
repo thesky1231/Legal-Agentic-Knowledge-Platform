@@ -11,6 +11,7 @@ from agentic_knowledge_platform.services.embeddings import HashEmbeddingService
 from agentic_knowledge_platform.services.evaluation import EvaluationService
 from agentic_knowledge_platform.services.model_router import ModelRouter, TemplateModelClient
 from agentic_knowledge_platform.services.observability import MetricsCollector
+from agentic_knowledge_platform.services.ollama import OllamaModelClient
 from agentic_knowledge_platform.services.openai_compatible import (
     EmbeddingService,
     ModelClient,
@@ -18,6 +19,7 @@ from agentic_knowledge_platform.services.openai_compatible import (
     OpenAICompatibleModelClient,
 )
 from agentic_knowledge_platform.services.knowledge_base import KnowledgeBaseService, LexicalReranker
+from agentic_knowledge_platform.services.local_corpus import bootstrap_local_corpus
 from agentic_knowledge_platform.services.parsing import MultiModalDocumentParser
 from agentic_knowledge_platform.services.run_store import InMemoryRunStore, RunStore, SQLiteRunStore
 from agentic_knowledge_platform.services.vector_store import InMemoryVectorStore, QdrantRestVectorStore, VectorStore
@@ -75,6 +77,12 @@ def build_container(settings: Settings | None = None) -> ServiceContainer:
         grounded_threshold=active_settings.grounded_threshold,
         default_top_k=active_settings.default_top_k,
     )
+    if active_settings.bootstrap_knowledge_paths.strip():
+        bootstrap_local_corpus(
+            knowledge_base=knowledge_base,
+            path_spec=active_settings.bootstrap_knowledge_paths,
+            tenant_id=active_settings.bootstrap_tenant_id,
+        )
     voice_pipeline = VoicePipeline(
         model_router=model_router,
         synthesizer=StubSpeechSynthesizer(),
@@ -151,6 +159,16 @@ def _build_model_clients(settings: Settings) -> list[ModelClient]:
             endpoint_mode=settings.model_endpoint_mode,
             supported_tasks={"summary", "qa"},
             timeout_seconds=settings.request_timeout_seconds,
+        )
+    elif settings.model_provider == "ollama":
+        primary = OllamaModelClient(
+            name="primary-router",
+            model=settings.ollama_model_name,
+            base_url=settings.ollama_base_url,
+            supported_tasks={"summary", "qa"},
+            timeout_seconds=settings.request_timeout_seconds,
+            temperature=settings.ollama_temperature,
+            keep_alive=settings.ollama_keep_alive,
         )
     else:
         primary = TemplateModelClient(

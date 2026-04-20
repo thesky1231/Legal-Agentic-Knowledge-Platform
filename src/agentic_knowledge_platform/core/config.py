@@ -25,6 +25,10 @@ class Settings:
     primary_model_name: str = os.getenv("PRIMARY_MODEL_NAME", "gpt-4.1-mini")
     primary_model_label: str = os.getenv("PRIMARY_MODEL_LABEL", "Primary Model")
     backup_model_label: str = os.getenv("BACKUP_MODEL_LABEL", "Fallback Model")
+    ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    ollama_model_name: str = os.getenv("OLLAMA_MODEL_NAME", "qwen2.5:7b")
+    ollama_temperature: float = float(os.getenv("OLLAMA_TEMPERATURE", "0"))
+    ollama_keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
     embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "hash")
     embedding_base_url: str = os.getenv("EMBEDDING_BASE_URL", "https://api.openai.com")
     embedding_api_key: str = os.getenv("EMBEDDING_API_KEY", "")
@@ -35,6 +39,8 @@ class Settings:
     qdrant_collection_name: str = os.getenv("QDRANT_COLLECTION_NAME", "knowledge_chunks")
     run_store_backend: str = os.getenv("RUN_STORE_BACKEND", "memory")
     sqlite_path: str = os.getenv("SQLITE_PATH", "./data/agent_platform.db")
+    bootstrap_knowledge_paths: str = os.getenv("BOOTSTRAP_KNOWLEDGE_PATHS", "")
+    bootstrap_tenant_id: str = os.getenv("BOOTSTRAP_TENANT_ID", "demo")
     api_auth_enabled: bool = os.getenv("API_AUTH_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
     api_keys: str = os.getenv("API_KEYS", "demo-key")
 

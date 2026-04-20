@@ -10,10 +10,16 @@ from agentic_knowledge_platform.types import DocumentIngestRequest, ParsedDocume
 class MultiModalDocumentParser:
     heading_pattern = re.compile(r"^(#{1,6})\s+(.*)$")
     transcript_pattern = re.compile(r"^\[(\d{2}:\d{2}(?::\d{2})?)\]\s*(.*)$")
+    legal_article_pattern = re.compile(
+        r"(第\s*[零一二三四五六七八九十百千万0-9]+(?:\s*之\s*[一二三四五六七八九十百千万0-9]+)?\s*条)"
+    )
+    legal_title_pattern = re.compile(r"^\s*[【\[]([^】\]]+)[】\]]")
 
     def parse(self, request: DocumentIngestRequest) -> ParsedDocument:
         if request.modality in {"markdown", "text"}:
             return self._parse_markdown_like(request)
+        if request.modality == "legal_text":
+            return self._parse_legal_text(request)
         if request.modality == "ocr":
             return self._parse_ocr(request)
         if request.modality == "audio":
@@ -210,12 +216,94 @@ class MultiModalDocumentParser:
             metadata=request.metadata.copy(),
         )
 
+    def _parse_legal_text(self, request: DocumentIngestRequest) -> ParsedDocument:
+        cleaned = self._clean_legal_text(request.content)
+        segments = self.legal_article_pattern.split(cleaned)
+        elements: list[ParsedElement] = []
+        outline: list[str] = []
+
+        for index in range(1, len(segments), 2):
+            if index + 1 >= len(segments):
+                continue
+
+            article_header = normalize_text(segments[index])
+            article_body = normalize_text(segments[index + 1])
+            if not article_body:
+                continue
+
+            section = article_header
+            title_match = self.legal_title_pattern.match(article_body)
+            if title_match:
+                section = normalize_text(f"{article_header} {title_match.group(1)}")
+
+            outline.append(section)
+            elements.append(
+                ParsedElement(
+                    kind="heading",
+                    content=section,
+                    section=section,
+                    metadata={"level": 2, "article": article_header},
+                )
+            )
+            elements.append(
+                ParsedElement(
+                    kind="paragraph",
+                    content=normalize_text(f"{article_header} {article_body}"),
+                    section=section,
+                    metadata={"article": article_header},
+                )
+            )
+
+        if not elements:
+            fallback_request = DocumentIngestRequest(
+                title=request.title,
+                content=cleaned,
+                source=request.source,
+                modality="text",
+                language=request.language,
+                tenant_id=request.tenant_id,
+                metadata=request.metadata.copy(),
+            )
+            return self._parse_markdown_like(fallback_request)
+
+        return ParsedDocument(
+            document_id=self._make_document_id(request),
+            title=request.title,
+            source=request.source,
+            modality=request.modality,
+            language=request.language,
+            outline=outline or [request.title],
+            elements=elements,
+            keywords=top_keywords(cleaned),
+            metadata=request.metadata.copy(),
+        )
+
     def _looks_like_table_start(self, lines: list[str], index: int) -> bool:
         if index + 1 >= len(lines):
             return False
         first = lines[index]
         second = lines[index + 1]
         return "|" in first and bool(re.match(r"^\s*\|?[\s:-]+\|[\s|:-]*$", second.strip()))
+
+    def _clean_legal_text(self, text: str) -> str:
+        cleaned = text.replace("|", " ")
+        noise_patterns = (
+            r"---\s*PAGE\s*\d+\s*---",
+            r"\b\d+\s*/\s*\d+\b",
+            r"JINGSH LAW FIRM",
+            r"北京京师律师事务所",
+            r"京师律师事务所",
+            r"赵荻律师团队",
+            r"中国刑事辩护网提供",
+            r"电话[:：]\s*0\d{2,3}-[\d-]+",
+        )
+        for pattern in noise_patterns:
+            cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
+        cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+        cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+        return cleaned.strip()
 
     def _make_document_id(self, request: DocumentIngestRequest) -> str:
         seed = f"{request.title}|{request.source}|{request.content[:120]}"

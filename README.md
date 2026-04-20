@@ -99,6 +99,7 @@ Useful for local exploration and debugging.
 Useful for showing how the same architecture can switch to external services.
 
 - OpenAI-compatible model and embedding adapters
+- optional local Ollama model adapter for answer generation
 - Qdrant REST vector store adapter
 - Docker and compose files for service-style startup
 
@@ -145,6 +146,17 @@ pip install -e .
 uvicorn agentic_knowledge_platform.main:create_app --factory --reload
 ```
 
+### Bootstrap a fixed local legal corpus
+
+If you want the backend to build its knowledge base from your own legal files at startup and keep that corpus as the default retrieval source, point the service at one or more local `.pdf` / `.txt` / `.md` paths:
+
+```env
+BOOTSTRAP_KNOWLEDGE_PATHS=E:\legal_corpus\criminal_law.txt;E:\legal_corpus\case_notes
+BOOTSTRAP_TENANT_ID=demo
+```
+
+For `.pdf` and `.txt` files the service uses article-level parsing based on the legacy legal-domain regex logic (`第X条 / 第X条之一`), which is the same ingestion style carried over from the earlier project.
+
 ### Start with Docker
 
 ```bash
@@ -187,6 +199,19 @@ VECTOR_STORE_BACKEND=qdrant
 QDRANT_URL=http://qdrant:6333
 QDRANT_COLLECTION_NAME=knowledge_chunks
 ```
+
+### Optional local Ollama mode
+
+If you want local generation without making Ollama a public hard dependency, keep the repository defaults unchanged and only switch these variables in your local shell or `.env`:
+
+```env
+MODEL_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL_NAME=qwen2.5:7b
+OLLAMA_TEMPERATURE=0
+```
+
+This keeps the public repository reproducible while still letting your local environment use Ollama as the primary answer-generation backend.
 
 ## Repository Layout
 
