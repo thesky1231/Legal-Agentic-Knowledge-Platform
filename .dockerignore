@@ -7,3 +7,12 @@ __pycache__/
 .env
 dist/
 build/
+.git/
+.github/
+.private/
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+test_artifacts/
+sqlite_root_test.db
+sqlite_root_test.db-journal

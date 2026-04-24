@@ -163,6 +163,15 @@ For `.pdf` and `.txt` files the service uses article-level parsing based on the 
 docker compose up --build
 ```
 
+### Deploy as a single CloudBase service
+
+The repository Dockerfile now builds the React frontend and serves it from the same FastAPI container, so CloudBase Run can deploy it as one `WEB` service instead of splitting frontend and backend.
+
+See:
+
+- `docs/CLOUDBASE_DEPLOYMENT.md`
+- `.env.cloudbase.example`
+
 ## API Surface
 
 Core endpoints exposed by the service:
@@ -248,6 +257,7 @@ This keeps the public repository reproducible while still letting your local env
 ## Additional Documentation
 
 - `CHANGELOG.md`
+- `docs/CLOUDBASE_DEPLOYMENT.md`
 - `docs/DEPLOYMENT.md`
 - `docs/LEGAL_CASE_STUDY.md`
 - `docs/RELEASES.md`

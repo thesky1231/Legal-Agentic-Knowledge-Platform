@@ -31,6 +31,12 @@ docker compose up --build
 
 This is the fastest reproducible deployment path for outside users.
 
+The Dockerfile now performs a multi-stage build:
+
+- builds the React frontend with Vite
+- copies the built frontend into the Python image
+- serves `/` and `/assets/*` from the same FastAPI container
+
 Once the service starts, open:
 
 - `GET http://localhost:8000/health`
@@ -42,6 +48,17 @@ Once the service starts, open:
 - `POST http://localhost:8000/agent/team/run`
 - `GET http://localhost:8000/runs`
 - `POST http://localhost:8000/evals/run`
+
+## CloudBase Run
+
+For CloudBase, the recommended path is a single container deployment using the repository Dockerfile.
+
+- deploy as a `WEB` service
+- use port `8000`
+- let the same container serve both frontend and backend
+- configure your startup corpus through `BOOTSTRAP_KNOWLEDGE_PATHS`
+
+See `docs/CLOUDBASE_DEPLOYMENT.md` for the exact environment-variable template and console checklist.
 
 ## Switching to real model APIs
 
