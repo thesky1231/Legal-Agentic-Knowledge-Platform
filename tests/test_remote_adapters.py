@@ -9,11 +9,11 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from agentic_knowledge_platform.services.ollama import OllamaModelClient
 from agentic_knowledge_platform.services.openai_compatible import (
     OpenAICompatibleEmbeddingService,
     OpenAICompatibleModelClient,
 )
-from agentic_knowledge_platform.services.ollama import OllamaModelClient
 from agentic_knowledge_platform.services.vector_store import QdrantRestVectorStore
 from agentic_knowledge_platform.types import ChunkRecord, ModelRequest
 
@@ -59,7 +59,9 @@ class RemoteAdapterTests(unittest.TestCase):
         )
         client.http = FakeHttpClient([{"response": "Grounded answer from ollama."}])
 
-        output = client.generate(ModelRequest(task="qa", prompt="How is fallback handled?", context_blocks=["Use citations."]))
+        output = client.generate(
+            ModelRequest(task="qa", prompt="How is fallback handled?", context_blocks=["Use citations."])
+        )
 
         self.assertEqual(output, "Grounded answer from ollama.")
         self.assertEqual(client.http.calls[0][1], "/api/generate")
@@ -89,10 +91,56 @@ class RemoteAdapterTests(unittest.TestCase):
             ]
         )
 
-        output = client.generate(ModelRequest(task="qa", prompt="What is the fallback path?", context_blocks=["Use backup model."]))
+        output = client.generate(
+            ModelRequest(
+                task="qa",
+                prompt="robbery vs snatching",
+                context_blocks=[
+                    "Article 263: robbery uses violence or coercion to take property.",
+                    "Article 267: snatching publicly seizes property.",
+                ],
+                metadata={"question_type": "confusing", "citation_count": "2"},
+            )
+        )
 
         self.assertEqual(output, "Grounded answer from remote model.")
         self.assertEqual(client.http.calls[0][1], "/v1/responses")
+        prompt = client.http.calls[0][2]["input"]
+        self.assertIn("Answer Composer v2", prompt)
+        self.assertIn("Question type: confusing", prompt)
+        self.assertIn("do_not_dump_statutes", prompt)
+        self.assertIn("do_not_use_general_legal_knowledge", prompt)
+        self.assertIn("Article 263", prompt)
+        self.assertNotIn("当前知识库没有检索到足以回答该问题的依据", prompt)
+
+    def test_openai_compatible_chat_prompt_uses_conservative_temperature(self) -> None:
+        client = OpenAICompatibleModelClient(
+            name="primary-router",
+            model="qwen-plus",
+            base_url="https://api.example.com",
+            api_key="secret",
+            endpoint_mode="chat_completions",
+            supported_tasks={"qa"},
+            timeout_seconds=5,
+        )
+        client.http = FakeHttpClient([{"choices": [{"message": {"content": "conservative answer"}}]}])
+
+        client.generate(
+            ModelRequest(
+                task="qa",
+                prompt="company annual leave days?",
+                context_blocks=["Article 272: misappropriation of funds."],
+                metadata={"question_type": "direct_answer", "citation_count": "1"},
+            )
+        )
+
+        _, path, payload = client.http.calls[0]
+        self.assertEqual(path, "/v1/chat/completions")
+        self.assertEqual(payload["temperature"], 0.0)
+        user_prompt = payload["messages"][1]["content"]
+        self.assertIn("Answer Composer v2", user_prompt)
+        self.assertIn("do_not_answer_from_weak_evidence", user_prompt)
+        self.assertIn("do_not_use_general_legal_knowledge", user_prompt)
 
     def test_openai_compatible_embedding_service_reads_vectors(self) -> None:
         service = OpenAICompatibleEmbeddingService(
@@ -120,15 +168,21 @@ class RemoteAdapterTests(unittest.TestCase):
             timeout_seconds=5,
         )
         client.http = FakeHttpClient(
-            [[
-                {"type": "response.output_text.delta", "delta": "抢劫罪"},
-                {"type": "response.output_text.delta", "delta": "通常涉及暴力或胁迫。"},
-            ]]
+            [
+                [
+                    {"type": "response.output_text.delta", "delta": "robbery"},
+                    {"type": "response.output_text.delta", "delta": " involves coercion."},
+                ]
+            ]
         )
 
-        chunks = list(client.stream_generate(ModelRequest(task="qa", prompt="抢劫是什么？", context_blocks=["法条内容"])))
+        chunks = list(
+            client.stream_generate(
+                ModelRequest(task="qa", prompt="What is robbery?", context_blocks=["Article text"])
+            )
+        )
 
-        self.assertEqual(["抢劫罪", "通常涉及暴力或胁迫。"], chunks)
+        self.assertEqual(["robbery", " involves coercion."], chunks)
         self.assertEqual(client.http.calls[0][0], "STREAM")
         self.assertEqual(client.http.calls[0][1], "/v1/responses")
 

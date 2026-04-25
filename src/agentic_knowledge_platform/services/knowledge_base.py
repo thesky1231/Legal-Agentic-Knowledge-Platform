@@ -23,6 +23,31 @@ from agentic_knowledge_platform.types import (
 
 
 QUERY_FILLER_CHARS = frozenset("的了是有吗呢么什多几天与和及或请问")
+SPECIAL_OBJECT_TERMS = frozenset(
+    {
+        "枪支",
+        "弹药",
+        "爆炸物",
+        "危险物质",
+        "毒害性",
+        "放射性",
+        "传染病",
+        "武器装备",
+        "军用物资",
+        "邮件",
+        "电报",
+        "发票",
+        "税款",
+    }
+)
+BOUNDARY_CONTEXT_TERMS = frozenset(
+    {
+        "窝藏赃物",
+        "抗拒抓捕",
+        "毁灭罪证",
+        "当场使用暴力",
+    }
+)
 GENERIC_QUERY_TERMS = frozenset(
     {
         "什么",
@@ -108,11 +133,13 @@ class LexicalReranker:
             overlap = len(query_tokens & chunk_tokens) / max(1, len(query_tokens))
             section_tokens = set(tokenize(chunk.section))
             section_boost = 0.15 if query_tokens & section_tokens else 0.0
+            focus_adjustment = self._section_focus_adjustment(query_tokens, chunk)
             final_score = round(
                 (vector_score * 0.45)
                 + (keyword_score * 0.25)
                 + (overlap * 0.30)
-                + section_boost,
+                + section_boost
+                + focus_adjustment,
                 4,
             )
             rescored.append(
@@ -125,6 +152,50 @@ class LexicalReranker:
             )
         rescored.sort(key=lambda item: item.final_score, reverse=True)
         return rescored[:top_k]
+
+    def _section_focus_adjustment(self, query_tokens: set[str], chunk: ChunkRecord) -> float:
+        if not query_tokens:
+            return 0.0
+
+        section = normalize_text(chunk.section)
+        content_preview = normalize_text(chunk.content[:180])
+        section_matches = [term for term in query_tokens if term in section]
+        evidence_matches = [term for term in query_tokens if term in section or term in content_preview]
+
+        adjustment = 0.0
+        if section_matches:
+            adjustment += min(0.28, 0.14 * len(section_matches))
+        if len(evidence_matches) >= max(1, min(2, len(query_tokens))):
+            adjustment += 0.06
+        if self._looks_like_primary_article(section, query_tokens):
+            adjustment += 0.18
+
+        if any(term in section or term in content_preview for term in SPECIAL_OBJECT_TERMS):
+            adjustment -= 0.34
+        if any(term in content_preview for term in BOUNDARY_CONTEXT_TERMS):
+            adjustment -= 0.26
+        if self._has_extra_crime_focus(section, query_tokens):
+            adjustment -= 0.12
+
+        return adjustment
+
+    def _looks_like_primary_article(self, section: str, query_tokens: set[str]) -> bool:
+        if any(term in section for term in SPECIAL_OBJECT_TERMS):
+            return False
+        if not any(term in section for term in query_tokens):
+            return False
+        if len(section) <= 16:
+            return True
+        if len(query_tokens) >= 2 and all(term in section for term in query_tokens) and len(section) <= 22:
+            return True
+        return False
+
+    def _has_extra_crime_focus(self, section: str, query_tokens: set[str]) -> bool:
+        crime_terms = re.findall(r"[\u4e00-\u9fff]{1,10}罪", section)
+        if len(crime_terms) <= 1:
+            return False
+        matched_crimes = [crime for crime in crime_terms if any(term in crime for term in query_tokens)]
+        return len(matched_crimes) < len(crime_terms)
 
 
 class KnowledgeBaseService:
@@ -322,7 +393,12 @@ class KnowledgeBaseService:
             return self.finalize_answer(plan)
 
         model_response = self.model_router.generate(plan["model_request"])
-        return self.finalize_answer(plan, model_output=model_response.output, route=model_response.route)
+        return self.finalize_answer(
+            plan,
+            model_output=model_response.output,
+            route=model_response.route,
+            model_diagnostics=model_response.diagnostics,
+        )
 
     def prepare_answer_plan(
         self,
@@ -414,6 +490,7 @@ class KnowledgeBaseService:
         plan: dict[str, object],
         model_output: str | None = None,
         route: str | None = None,
+        model_diagnostics: list[str] | None = None,
     ) -> AnswerResult:
         status = str(plan["status"])
         citations = list(plan["citations"])
@@ -452,7 +529,22 @@ class KnowledgeBaseService:
 
         if route:
             reasoning.append(f"route={route}")
+        for diagnostic in model_diagnostics or []:
+            reasoning.append(f"model_error={normalize_text(diagnostic)[:500]}")
         cleaned_answer = self._clean_model_answer(model_output or "")
+        if self._model_signaled_insufficient_evidence(cleaned_answer):
+            reasoning.append("guard=model_insufficient_evidence")
+            sections = self._build_low_confidence_sections(question, citations)
+            return AnswerResult(
+                answer=self._render_sections(sections),
+                grounded=False,
+                citations=citations,
+                answer_sections=sections,
+                reasoning=reasoning,
+                question_type=question_type,
+                confidence="low",
+                refusal_triggered=True,
+            )
         sections = self._build_grounded_sections(question, cleaned_answer, citations, question_type)
         return AnswerResult(
             answer=self._render_sections(sections),
@@ -494,22 +586,13 @@ class KnowledgeBaseService:
         sections = [
             AnswerSection(
                 title="结论",
-                body="当前检索到的法条和材料不足以支撑高置信度回答，系统先给出保守结论，不直接扩展推断。",
+                body="当前知识库没有检索到足以回答该问题的依据，不能基于弱相关材料作出明确回答。",
             ),
             AnswerSection(
                 title="原因",
-                body="已命中的材料与问题存在一定相关性，但证据覆盖还不够完整，暂时不足以支持更明确的法律判断。",
+                body="检索可能命中了一些字面相关材料，但它们没有直接覆盖问题的核心事实、概念或适用规则，因此不作为回答依据。",
             ),
         ]
-        if citations:
-            sections.append(
-                AnswerSection(
-                    title="已命中的相关条文",
-                    body="\n".join(
-                        f"- {self._reference_label(citation)}：{citation.snippet}" for citation in citations[:2]
-                    ),
-                )
-            )
         sections.append(
             AnswerSection(
                 title="建议",
@@ -613,6 +696,10 @@ class KnowledgeBaseService:
         cleaned = re.sub(r"^结论[:：]\s*", "", cleaned)
         cleaned = re.sub(r"\s*Citations:.*$", "", cleaned)
         return cleaned.strip()
+
+    def _model_signaled_insufficient_evidence(self, answer: str) -> bool:
+        normalized = normalize_text(answer).upper()
+        return normalized == "EVIDENCE_INSUFFICIENT"
 
     def _reference_label(self, citation: Citation) -> str:
         title = citation.title.strip()

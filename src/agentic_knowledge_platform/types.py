@@ -110,6 +110,7 @@ class ModelResponse:
     route: str
     output: str
     latency_ms: int
+    diagnostics: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)

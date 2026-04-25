@@ -109,6 +109,7 @@ class ModelRouter:
             )
             for client in clients
         }
+        self.last_errors: dict[str, str] = {client.name: "" for client in clients}
 
     def generate(self, request: ModelRequest) -> ModelResponse:
         errors: list[str] = []
@@ -116,29 +117,39 @@ class ModelRouter:
         for client_name in routes:
             client = self.clients[client_name]
             if request.task not in client.supported_tasks:
-                errors.append(f"{client_name} does not support {request.task}")
+                message = f"{client_name} does not support {request.task}"
+                self._record_route_error(client_name, message)
+                errors.append(message)
                 continue
             breaker = self.breakers[client_name]
             if not breaker.allow_request():
-                errors.append(f"{client_name} breaker open")
+                message = f"{client_name} breaker open"
+                self._record_route_error(client_name, message)
+                errors.append(message)
                 continue
             if not self.rate_limiter.allow(f"{client_name}:{request.task}:{request.session_id}"):
-                errors.append(f"{client_name} rate limited")
+                message = f"{client_name} rate limited"
+                self._record_route_error(client_name, message)
+                errors.append(message)
                 continue
             started = time.perf_counter()
             try:
                 output = self.retry_policy.call(lambda: client.generate(request), exceptions=(RuntimeError, ValueError))
             except Exception as exc:
                 breaker.record_failure()
-                errors.append(f"{client_name} failed: {exc}")
+                message = f"{client_name} failed: {exc}"
+                self._record_route_error(client_name, message)
+                errors.append(message)
                 continue
             latency_ms = int((time.perf_counter() - started) * 1000)
             breaker.record_success()
+            self.last_errors[client_name] = ""
             return ModelResponse(
                 model=client.name,
                 route=client_name,
                 output=output,
                 latency_ms=latency_ms,
+                diagnostics=list(errors),
             )
         raise RuntimeError(f"no available model route for task {request.task}: {'; '.join(errors)}")
 
@@ -148,14 +159,20 @@ class ModelRouter:
         for client_name in routes:
             client = self.clients[client_name]
             if request.task not in client.supported_tasks:
-                errors.append(f"{client_name} does not support {request.task}")
+                message = f"{client_name} does not support {request.task}"
+                self._record_route_error(client_name, message)
+                errors.append(message)
                 continue
             breaker = self.breakers[client_name]
             if not breaker.allow_request():
-                errors.append(f"{client_name} breaker open")
+                message = f"{client_name} breaker open"
+                self._record_route_error(client_name, message)
+                errors.append(message)
                 continue
             if not self.rate_limiter.allow(f"{client_name}:{request.task}:{request.session_id}"):
-                errors.append(f"{client_name} rate limited")
+                message = f"{client_name} rate limited"
+                self._record_route_error(client_name, message)
+                errors.append(message)
                 continue
 
             def iterator() -> Iterator[str]:
@@ -168,17 +185,24 @@ class ModelRouter:
                         output = self.retry_policy.call(lambda: client.generate(request), exceptions=(RuntimeError, ValueError))
                         for chunk in self._chunk_output(output):
                             yield chunk
-                except Exception:
+                except Exception as exc:
                     breaker.record_failure()
+                    self._record_route_error(client_name, f"{client_name} failed: {exc}")
                     raise
                 else:
                     breaker.record_success()
+                    self.last_errors[client_name] = ""
 
             return client.name, client_name, iterator()
         raise RuntimeError(f"no available model route for task {request.task}: {'; '.join(errors)}")
 
     def breaker_state(self, client_name: str) -> dict[str, float | int | str]:
-        return self.breakers[client_name].snapshot()
+        snapshot = self.breakers[client_name].snapshot()
+        snapshot["last_error"] = self.last_errors.get(client_name, "")
+        return snapshot
+
+    def _record_route_error(self, client_name: str, message: str) -> None:
+        self.last_errors[client_name] = normalize_text(message)[:500]
 
     def _chunk_output(self, output: str) -> Iterator[str]:
         normalized = normalize_text(output)

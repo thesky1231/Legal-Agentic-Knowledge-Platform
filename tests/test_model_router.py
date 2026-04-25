@@ -46,7 +46,9 @@ class ModelRouterTests(unittest.TestCase):
         )
 
         self.assertEqual(response.route, "backup")
+        self.assertTrue(any("primary failed" in item for item in response.diagnostics))
         self.assertEqual(router.breaker_state("primary")["state"], "open")
+        self.assertIn("simulated failure", str(router.breaker_state("primary")["last_error"]))
 
 
 if __name__ == "__main__":
