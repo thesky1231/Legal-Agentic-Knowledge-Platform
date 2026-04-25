@@ -115,6 +115,8 @@ class ExecutionRouterTests(unittest.TestCase):
         self.assertEqual(response.question_type, "direct_answer")
         self.assertTrue(response.grounded)
         self.assertTrue(any(step.agent == "router-agent" for step in response.steps))
+        self.assertTrue(any("model_route=" in step.observation for step in response.steps))
+        self.assertTrue(any("model_error=" in step.observation for step in response.steps))
 
     def test_definition_auto_uses_rag_or_single_agent(self) -> None:
         response = self.container.execution_router.run_auto(
@@ -171,6 +173,23 @@ class ExecutionRouterTests(unittest.TestCase):
         self.assertIn("auto", payload["agent_mode"])
         self.assertIn("steps", payload)
         self.assertTrue(any(step["agent"] == "router-agent" for step in payload["steps"]))
+
+    @unittest.skipIf(TestClient is None, "FastAPI test client is not available")
+    def test_health_exposes_model_diagnostics_without_secrets(self) -> None:
+        app = create_app(self.container)
+        client = TestClient(app)
+
+        response = client.get("/health")
+        payload = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("model_endpoint_mode", payload)
+        self.assertIn("primary_model_name", payload)
+        self.assertIn("model_api_key_configured", payload)
+        self.assertIn("model_clients", payload)
+        self.assertTrue(any(client["name"] == "primary-router" for client in payload["model_clients"]))
+        self.assertTrue(all("last_error" in client["breaker"] for client in payload["model_clients"]))
+        self.assertNotIn("model_api_key", payload)
 
 
 if __name__ == "__main__":

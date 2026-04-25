@@ -32,7 +32,9 @@ class ReActAgent:
                 observation=(
                     f"grounded={answer_result.grounded}; citations={len(answer_result.citations)}; "
                     f"type={answer_result.question_type}; confidence={answer_result.confidence}; "
-                    f"refusal={answer_result.refusal_triggered}"
+                    f"refusal={answer_result.refusal_triggered}; "
+                    f"model_route={self._model_route(answer_result.reasoning)}; "
+                    f"model_error={self._model_error(answer_result.reasoning)}"
                 ),
             )
         )
@@ -62,3 +64,19 @@ class ReActAgent:
             confidence=answer_result.confidence,
             refusal_triggered=answer_result.refusal_triggered,
         )
+
+    def _model_route(self, reasoning: list[str]) -> str:
+        for item in reasoning:
+            if item.startswith("route="):
+                return item.removeprefix("route=")
+        if any(item == "guard=model_insufficient_evidence" for item in reasoning):
+            return "model_guard"
+        if any(item.startswith("guard=") for item in reasoning):
+            return "not_called"
+        return "unknown"
+
+    def _model_error(self, reasoning: list[str]) -> str:
+        for item in reasoning:
+            if item.startswith("model_error="):
+                return item.removeprefix("model_error=")
+        return "none"

@@ -5,6 +5,7 @@ import time
 import threading
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from agentic_knowledge_platform.container import ServiceContainer, build_container
@@ -206,7 +207,15 @@ def create_app(container: ServiceContainer | None = None):
             "documents": len(services.knowledge_base.documents),
             "vectors": services.vector_store.size(),
             "model_provider": services.settings.model_provider,
+            "model_endpoint_mode": services.settings.model_endpoint_mode,
+            "model_base_url": _safe_url_for_diagnostics(services.settings.model_base_url),
+            "primary_model_name": services.settings.primary_model_name,
+            "model_api_key_configured": bool(services.settings.model_api_key),
+            "model_clients": _model_clients_for_diagnostics(services),
             "embedding_provider": services.settings.embedding_provider,
+            "embedding_model_name": services.settings.embedding_model_name,
+            "embedding_base_url": _safe_url_for_diagnostics(services.settings.embedding_base_url),
+            "embedding_api_key_configured": bool(services.settings.embedding_api_key),
             "vector_store_backend": services.settings.vector_store_backend,
             "run_store_backend": services.settings.run_store_backend,
             "api_auth_enabled": services.settings.api_auth_enabled,
@@ -585,3 +594,25 @@ def create_app(container: ServiceContainer | None = None):
         return to_dict(services.evaluation_service.evaluate_from_file(dataset_path))
 
     return app
+
+
+def _safe_url_for_diagnostics(url: str) -> str:
+    parsed = urlparse(url)
+    if not parsed.netloc:
+        return url
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
+
+
+def _model_clients_for_diagnostics(services: ServiceContainer) -> list[dict[str, Any]]:
+    clients: list[dict[str, Any]] = []
+    for name, client in services.model_router.clients.items():
+        clients.append(
+            {
+                "name": name,
+                "client_type": client.__class__.__name__,
+                "model": getattr(client, "model", None),
+                "supported_tasks": sorted(getattr(client, "supported_tasks", set())),
+                "breaker": services.model_router.breaker_state(name),
+            }
+        )
+    return clients
