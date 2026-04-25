@@ -21,6 +21,19 @@ body {
 
 body {
   margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
 }
 
 ::selection {
@@ -29,4 +42,16 @@ body {
 
 .glass-panel {
   @apply border border-stone-200/70 bg-white/80 shadow-panel backdrop-blur-xl;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.safe-bottom {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }

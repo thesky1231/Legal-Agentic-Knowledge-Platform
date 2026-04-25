@@ -247,30 +247,30 @@ export default function LegalAssistant() {
   const answerSections = Array.isArray(result?.answer_sections) ? result.answer_sections : [];
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] text-stone-800 font-sans selection:bg-emerald-100">
+    <div className="min-h-dvh bg-[#FDFCFB] text-stone-800 font-sans selection:bg-emerald-100">
       {systemState.status !== "ready" && (
-        <div className={`w-full text-center py-2 text-sm font-medium transition-colors ${systemState.status === "initializing" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
+        <div className={`sticky top-0 z-20 w-full px-4 py-2 text-center text-xs font-medium shadow-sm transition-colors sm:text-sm ${systemState.status === "initializing" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
           {systemState.status === "initializing" ? "系统准备中：正在挂载法律知识库..." : systemState.message}
         </div>
       )}
 
-      <main className="max-w-4xl mx-auto px-4 py-8 sm:px-6 sm:py-12 md:py-20">
-        <div className="text-center mb-10 sm:mb-16">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-stone-900 tracking-tight leading-tight mb-4">法律知识助手</h1>
-          <p className="text-stone-500 text-base sm:text-lg mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
+      <main className="safe-bottom mx-auto max-w-4xl px-4 pt-6 sm:px-6 sm:py-12 md:py-20">
+        <div className="mb-8 text-left sm:mb-16 sm:text-center">
+          <h1 className="mb-3 font-serif text-[2.35rem] leading-[1.08] tracking-tight text-stone-900 sm:mb-4 sm:text-4xl md:text-5xl">法律知识助手</h1>
+          <p className="mb-5 max-w-2xl text-[15px] leading-7 text-stone-500 sm:mx-auto sm:mb-8 sm:text-lg sm:leading-relaxed">
             基于法条证据和结构化检索构建，支持引用溯源、保守拒答与多智能体审核。
           </p>
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+          <div className="hide-scrollbar -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
             {["Grounded Answer", "Citation Trace", "Conservative Refusal", "Reviewer Agent", "Voice-ready Workflow"].map((tag) => (
-              <span key={tag} className="px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-[11px] uppercase tracking-wider text-stone-500 border border-stone-200 rounded-md bg-white shadow-sm">
+              <span key={tag} className="snap-start whitespace-nowrap rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-stone-500 shadow-sm sm:px-3 sm:text-[11px]">
                 {tag}
               </span>
             ))}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_2px_20px_-4px_rgba(0,0,0,0.05)] border border-stone-100 p-4 sm:p-6 md:p-8 mb-10 sm:mb-12">
-          <div className="-mx-1 mb-6 flex justify-start overflow-x-auto px-1 sm:mb-8 sm:justify-center">
+        <div className="mb-8 rounded-2xl border border-stone-100 bg-white p-3 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.05)] sm:mb-12 sm:p-6 md:p-8">
+          <div className="hide-scrollbar -mx-1 mb-4 flex justify-start overflow-x-auto px-1 sm:mb-8 sm:justify-center">
             <div className="inline-flex min-w-max bg-stone-100 p-1 rounded-lg">
               {[
                 { id: "auto", label: "自动模式" },
@@ -281,7 +281,7 @@ export default function LegalAssistant() {
                 <button
                   key={item.id}
                   onClick={() => setMode(item.id)}
-                  className={`shrink-0 px-4 sm:px-6 py-2 text-sm font-medium rounded-md transition-all ${mode === item.id ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+                  className={`min-h-11 shrink-0 rounded-md px-4 py-2 text-sm font-medium transition-all sm:min-h-0 sm:px-6 ${mode === item.id ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
                 >
                   {item.label}
                 </button>
@@ -289,37 +289,37 @@ export default function LegalAssistant() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-3 sm:relative sm:block">
+          <form onSubmit={handleSubmit} className="mb-4 flex flex-col gap-3 sm:relative sm:mb-6 sm:block">
             <div className="relative">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <div className="pointer-events-none absolute left-4 top-4 sm:inset-y-0 sm:top-auto sm:flex sm:items-center">
                 <SearchIcon />
               </div>
-              <input
-                type="text"
+              <textarea
+                rows={2}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 disabled={systemState.status !== "ready" || isGenerating}
                 placeholder="输入你的法律问题，例如：抢劫与抢夺的区别是什么？"
-                className="w-full pl-12 pr-4 sm:pr-32 py-4 bg-stone-50 border border-stone-200 rounded-xl text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all text-base disabled:opacity-50 disabled:bg-stone-100"
+                className="min-h-[96px] w-full resize-none rounded-xl border border-stone-200 bg-stone-50 py-4 pl-12 pr-4 text-base leading-7 text-stone-800 placeholder-stone-400 transition-all focus:border-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/20 disabled:bg-stone-100 disabled:opacity-50 sm:min-h-0 sm:overflow-hidden sm:py-4 sm:pr-32 sm:leading-6"
               />
             </div>
             <button
               type="submit"
               disabled={systemState.status !== "ready" || isGenerating || !query.trim()}
-              className="flex w-full items-center justify-center rounded-lg bg-[#21352A] px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[#16251C] disabled:cursor-not-allowed disabled:opacity-50 sm:absolute sm:inset-y-2 sm:right-2 sm:h-auto sm:w-auto sm:py-0"
+              className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[#21352A] px-6 py-3 text-sm font-medium text-white shadow-lg shadow-emerald-950/10 transition-colors hover:bg-[#16251C] disabled:cursor-not-allowed disabled:opacity-50 sm:absolute sm:inset-y-2 sm:right-2 sm:h-auto sm:w-auto sm:rounded-lg sm:py-0"
             >
               {isGenerating ? "处理中..." : "生成回答"}
             </button>
           </form>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
-            <span className="w-full text-stone-400 font-medium sm:w-auto">示例提问：</span>
+          <div className="hide-scrollbar -mx-3 flex snap-x items-center gap-2 overflow-x-auto px-3 pb-1 text-sm sm:mx-0 sm:flex-wrap sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
+            <span className="shrink-0 text-stone-400 font-medium">示例提问：</span>
             {sampleQuestions.map((item) => (
               <button
                 key={item}
                 type="button"
                 onClick={() => setQuery(item)}
-                className="px-3 py-1 bg-stone-50 text-stone-600 rounded-md hover:bg-stone-100 transition-colors border border-stone-200"
+                className="min-h-9 shrink-0 snap-start rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-stone-600 transition-colors hover:bg-stone-100"
               >
                 {item}
               </button>
@@ -328,11 +328,11 @@ export default function LegalAssistant() {
         </div>
 
         {result && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
-              <div className="bg-white border border-stone-100 rounded-xl p-4 shadow-sm flex flex-col justify-center">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="flex min-h-[86px] flex-col justify-center rounded-xl border border-stone-100 bg-white p-3 shadow-sm sm:p-4">
                 <span className="text-[11px] text-stone-400 uppercase tracking-widest mb-1">Current Mode</span>
-                <span className="text-sm font-medium text-stone-700">
+                <span className="break-words text-sm font-medium text-stone-700">
                   {mode === "auto"
                     ? result?.agent_mode || "自动路由"
                     : mode === "rag"
@@ -342,7 +342,7 @@ export default function LegalAssistant() {
                         : "Team Agent 交叉审核"}
                 </span>
               </div>
-              <div className="bg-white border border-stone-100 rounded-xl p-4 shadow-sm flex flex-col justify-center">
+              <div className="flex min-h-[86px] flex-col justify-center rounded-xl border border-stone-100 bg-white p-3 shadow-sm sm:p-4">
                 <span className="text-[11px] text-stone-400 uppercase tracking-widest mb-1">Grounded</span>
                 <div className="flex items-center">
                   {result.grounded ? <ShieldIcon /> : null}
@@ -351,7 +351,7 @@ export default function LegalAssistant() {
                   </span>
                 </div>
               </div>
-              <div className="bg-white border border-stone-100 rounded-xl p-4 shadow-sm flex flex-col justify-center">
+              <div className="flex min-h-[86px] flex-col justify-center rounded-xl border border-stone-100 bg-white p-3 shadow-sm sm:p-4">
                 <span className="text-[11px] text-stone-400 uppercase tracking-widest mb-1">Confidence</span>
                 <div className="flex items-center justify-between gap-3 mt-1">
                   <div className="w-full bg-stone-100 rounded-full h-1.5">
@@ -362,8 +362,8 @@ export default function LegalAssistant() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
-              <div className="bg-stone-50 border-b border-stone-100 px-4 py-3 sm:px-6 sm:py-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+              <div className="flex flex-col items-start gap-2 border-b border-stone-100 bg-stone-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
                 <h3 className="font-serif text-lg text-stone-800">综合解答</h3>
                 {result.voice_job && (
                   <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#F2F0EB] text-[#6A604A]">
@@ -372,11 +372,11 @@ export default function LegalAssistant() {
                 )}
               </div>
               {answerSections.length > 0 ? (
-                <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
+                <div className="space-y-3 p-3 sm:space-y-5 sm:p-6">
                   {answerSections.map((section, index) => (
                     <section
                       key={`${section.title}-${index}`}
-                      className={`rounded-xl border px-4 py-4 break-words ${
+                      className={`rounded-xl border px-3 py-3 break-words sm:px-4 sm:py-4 ${
                         section.title === "结论"
                           ? "border-stone-200 bg-white"
                           : section.title === "法条依据"
@@ -385,12 +385,12 @@ export default function LegalAssistant() {
                       }`}
                     >
                       <h4 className="text-sm font-semibold text-stone-800 mb-2">{section.title}</h4>
-                      <div className="text-[15px] leading-7 text-stone-700">{renderMultiline(section.body)}</div>
+                      <div className="text-[15px] leading-7 text-stone-700 sm:leading-8">{renderMultiline(section.body)}</div>
                     </section>
                   ))}
                 </div>
               ) : (
-                <div className="p-4 sm:p-6 text-stone-700 leading-loose text-[15px] whitespace-pre-wrap break-words">{result.answer}</div>
+                <div className="break-words p-4 text-[15px] leading-7 text-stone-700 sm:p-6 sm:leading-loose whitespace-pre-wrap">{result.answer}</div>
               )}
             </div>
 
@@ -416,9 +416,9 @@ export default function LegalAssistant() {
                   <DocumentIcon />
                   引用依据
                 </h4>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="hide-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0">
                   {result.citations.map((cite, index) => (
-                    <div key={`${cite.chunk_id}-${index}`} className="p-4 rounded-xl border border-stone-200 bg-white hover:border-emerald-700/30 transition-colors">
+                    <div key={`${cite.chunk_id}-${index}`} className="min-w-[82vw] snap-start rounded-xl border border-stone-200 bg-white p-4 transition-colors hover:border-emerald-700/30 md:min-w-0">
                       <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                         <div className="text-sm font-semibold text-stone-800 break-words" title={cite.section || cite.title}>
                           {cite.section || cite.title}
@@ -443,7 +443,7 @@ export default function LegalAssistant() {
                   {expandedSteps ? "隐藏执行链路" : "查看底层执行链路"}
                 </button>
                 {expandedSteps && (
-                  <div className="mt-4 p-4 bg-[#F2F2F2] rounded-lg border border-[#E5E5E5] space-y-3 font-mono text-[11px] text-stone-600">
+                  <div className="mt-4 max-h-64 space-y-3 overflow-y-auto rounded-lg border border-[#E5E5E5] bg-[#F2F2F2] p-3 font-mono text-[11px] text-stone-600 sm:max-h-none sm:p-4">
                     {result.steps.map((step, index) => (
                       <div key={`${step.action}-${index}`} className="flex flex-col gap-1 sm:flex-row">
                         <span className="w-auto shrink-0 text-emerald-700 font-semibold sm:w-24">[{step.action}]</span>
