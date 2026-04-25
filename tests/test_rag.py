@@ -50,6 +50,29 @@ class RagTests(unittest.TestCase):
         self.assertFalse(answer.grounded)
         self.assertTrue(answer.refusal_triggered)
 
+    def test_labor_question_rejects_weak_company_crime_match(self) -> None:
+        container = build_container()
+        container.knowledge_base.ingest(
+            DocumentIngestRequest(
+                title="刑法条文",
+                content=(
+                    "## 挪用资金罪\n"
+                    "公司、企业或者其他单位的工作人员，利用职务上的便利，"
+                    "挪用本单位资金归个人使用或者借贷给他人，数额较大、超过三个月未还的，"
+                    "依照相关刑法条文处理。"
+                ),
+                source="unit",
+                modality="markdown",
+                tenant_id="demo",
+            )
+        )
+
+        answer = container.knowledge_base.answer("公司年假有多少天？", tenant_id="demo")
+
+        self.assertFalse(answer.grounded)
+        self.assertTrue(answer.refusal_triggered)
+        self.assertIn("guard=lexical_mismatch", answer.reasoning)
+
 
 if __name__ == "__main__":
     unittest.main()

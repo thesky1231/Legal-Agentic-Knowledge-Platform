@@ -1,10 +1,14 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+from collections import Counter
 from collections import defaultdict
+from dataclasses import dataclass
+import math
 import re
 
 from agentic_knowledge_platform.text import normalize_text, short_snippet, tokenize
 from agentic_knowledge_platform.services.query_policy import QuestionPolicyService
+from agentic_knowledge_platform.services.vector_store import StoredVectorRecord
 from agentic_knowledge_platform.types import (
     AnswerSection,
     AnswerResult,
@@ -18,27 +22,104 @@ from agentic_knowledge_platform.types import (
 )
 
 
+QUERY_FILLER_CHARS = frozenset("的了是有吗呢么什多几天与和及或请问")
+GENERIC_QUERY_TERMS = frozenset(
+    {
+        "什么",
+        "怎么",
+        "如何",
+        "多少",
+        "几天",
+        "有多",
+        "少天",
+        "是否",
+        "可以",
+        "哪些",
+        "有关",
+        "规定",
+        "公司",
+        "企业",
+        "单位",
+        "人员",
+        "工作",
+        "职工",
+        "员工",
+        "区别",
+        "不同",
+        "比较",
+        "说明",
+        "请问",
+        "请用",
+        "应当",
+        "判断",
+        "处理",
+        "如果",
+        "为何",
+        "为什么",
+    }
+)
+
+
+def meaningful_query_terms(question: str) -> list[str]:
+    terms: list[str] = []
+    seen: set[str] = set()
+    for token in tokenize(question):
+        if len(token) < 2:
+            continue
+        if token in GENERIC_QUERY_TERMS:
+            continue
+        if any(char in QUERY_FILLER_CHARS for char in token):
+            continue
+        if not any("\u4e00" <= char <= "\u9fff" for char in token):
+            continue
+        if token in seen:
+            continue
+        terms.append(token)
+        seen.add(token)
+    return terms
+
+
+@dataclass(slots=True)
+class RetrievalCandidate:
+    record: StoredVectorRecord
+    vector_score: float = 0.0
+    keyword_score: float = 0.0
+
+
 class LexicalReranker:
     def rerank(
         self,
         question: str,
-        candidates: list[tuple[float, object]],
+        candidates: list[RetrievalCandidate] | list[tuple[float, object]],
         top_k: int,
     ) -> list[RetrievalHit]:
-        query_tokens = set(tokenize(question))
+        query_tokens = set(meaningful_query_terms(question)) or set(tokenize(question))
         rescored: list[RetrievalHit] = []
-        for vector_score, record in candidates:
+        for candidate in candidates:
+            if isinstance(candidate, RetrievalCandidate):
+                record = candidate.record
+                vector_score = candidate.vector_score
+                keyword_score = candidate.keyword_score
+            else:
+                vector_score, record = candidate
+                keyword_score = 0.0
             chunk = record.chunk
-            chunk_tokens = set(tokenize(chunk.content))
+            chunk_tokens = set(tokenize(f"{chunk.section} {chunk.content}"))
             overlap = len(query_tokens & chunk_tokens) / max(1, len(query_tokens))
             section_tokens = set(tokenize(chunk.section))
             section_boost = 0.15 if query_tokens & section_tokens else 0.0
-            final_score = round((vector_score * 0.65) + (overlap * 0.35) + section_boost, 4)
+            final_score = round(
+                (vector_score * 0.45)
+                + (keyword_score * 0.25)
+                + (overlap * 0.30)
+                + section_boost,
+                4,
+            )
             rescored.append(
                 RetrievalHit(
                     chunk=chunk,
                     vector_score=round(vector_score, 4),
-                    rerank_score=round(overlap + section_boost, 4),
+                    rerank_score=round(keyword_score + overlap + section_boost, 4),
                     final_score=final_score,
                 )
             )
@@ -114,12 +195,107 @@ class KnowledgeBaseService:
     ) -> list[RetrievalHit]:
         effective_top_k = top_k or self.default_top_k
         query_vector = self.embeddings.embed(question)
-        candidates = self.vector_store.search(
+        vector_results = self.vector_store.search(
             query_vector,
             top_k=max(effective_top_k * 3, effective_top_k),
             tenant_id=tenant_id,
         )
+        keyword_results = self._keyword_search(
+            question=question,
+            top_k=max(effective_top_k * 2, effective_top_k),
+            tenant_id=tenant_id,
+        )
+        candidates = self._merge_retrieval_candidates(vector_results, keyword_results)
         return self.reranker.rerank(question, candidates, effective_top_k)
+
+    def _merge_retrieval_candidates(
+        self,
+        vector_results: list[tuple[float, StoredVectorRecord]],
+        keyword_results: list[tuple[float, ChunkRecord]],
+    ) -> list[RetrievalCandidate]:
+        candidates: dict[str, RetrievalCandidate] = {}
+        for score, record in vector_results:
+            candidates[record.chunk.chunk_id] = RetrievalCandidate(
+                record=record,
+                vector_score=float(score),
+                keyword_score=0.0,
+            )
+
+        max_keyword_score = max((score for score, _ in keyword_results), default=0.0)
+        for score, chunk in keyword_results:
+            normalized_keyword_score = float(score) / max_keyword_score if max_keyword_score > 0 else 0.0
+            existing = candidates.get(chunk.chunk_id)
+            if existing:
+                existing.keyword_score = max(existing.keyword_score, normalized_keyword_score)
+                continue
+            candidates[chunk.chunk_id] = RetrievalCandidate(
+                record=StoredVectorRecord(chunk=chunk, vector=[]),
+                vector_score=0.0,
+                keyword_score=normalized_keyword_score,
+            )
+        return list(candidates.values())
+
+    def _keyword_search(
+        self,
+        question: str,
+        top_k: int,
+        tenant_id: str | None = None,
+    ) -> list[tuple[float, ChunkRecord]]:
+        query_terms = meaningful_query_terms(question)
+        if not query_terms:
+            return []
+
+        chunks = self._tenant_chunks(tenant_id)
+        if not chunks:
+            return []
+
+        chunk_tokens = [self._bm25_tokens(f"{chunk.section} {chunk.content}") for chunk in chunks]
+        doc_count = len(chunks)
+        avg_doc_length = sum(len(tokens) for tokens in chunk_tokens) / max(1, doc_count)
+        doc_frequency: Counter[str] = Counter()
+        for tokens in chunk_tokens:
+            doc_frequency.update(set(tokens))
+
+        scores: list[tuple[float, ChunkRecord]] = []
+        for chunk, tokens in zip(chunks, chunk_tokens, strict=True):
+            if not tokens:
+                continue
+            token_counts = Counter(tokens)
+            doc_length = len(tokens)
+            score = 0.0
+            for term in query_terms:
+                term_frequency = token_counts.get(term, 0)
+                if term_frequency <= 0:
+                    continue
+                frequency = doc_frequency.get(term, 0)
+                inverse_document_frequency = math.log(
+                    1 + (doc_count - frequency + 0.5) / (frequency + 0.5)
+                )
+                k1 = 1.5
+                b = 0.75
+                denominator = term_frequency + k1 * (1 - b + b * doc_length / max(1.0, avg_doc_length))
+                score += inverse_document_frequency * ((term_frequency * (k1 + 1)) / denominator)
+            if score > 0:
+                scores.append((round(score, 4), chunk))
+
+        scores.sort(key=lambda item: item[0], reverse=True)
+        return scores[:top_k]
+
+    def _tenant_chunks(self, tenant_id: str | None) -> list[ChunkRecord]:
+        chunks: list[ChunkRecord] = []
+        for document_chunks in self.chunks_by_document.values():
+            for chunk in document_chunks:
+                if tenant_id and chunk.metadata.get("tenant_id") != tenant_id:
+                    continue
+                chunks.append(chunk)
+        return chunks
+
+    def _bm25_tokens(self, text: str) -> list[str]:
+        return [
+            token
+            for token in tokenize(text)
+            if len(token) >= 2 and not any(char in QUERY_FILLER_CHARS for char in token)
+        ]
 
     def summarize_document(self, document_id: str) -> str:
         document = self.documents[document_id]
@@ -188,13 +364,19 @@ class KnowledgeBaseService:
                 "hint": "",
             }
 
-        if not grounded or self.question_policy.is_low_confidence(question, hits, question_type):
+        evidence_supported = self._evidence_covers_question(question, hits, question_type)
+        if (
+            not grounded
+            or self.question_policy.is_low_confidence(question, hits, question_type)
+            or not evidence_supported
+        ):
+            guard_reason = "guard=insufficient_evidence" if evidence_supported else "guard=lexical_mismatch"
             return {
                 "status": "low_confidence",
                 "question": question,
                 "question_type": question_type,
                 "citations": citations,
-                "reasoning": reasoning + ["guard=insufficient_evidence"],
+                "reasoning": reasoning + [guard_reason],
                 "grounded": False,
                 "confidence": "low",
                 "refusal_triggered": True,
@@ -390,6 +572,40 @@ class KnowledgeBaseService:
         if top_score >= 0.32:
             return "medium"
         return "low"
+
+    def _evidence_covers_question(
+        self,
+        question: str,
+        hits: list[RetrievalHit],
+        question_type: str,
+    ) -> bool:
+        if question_type == "should_refuse":
+            return True
+        if not hits:
+            return False
+
+        query_terms = self._question_evidence_terms(question)
+        if not query_terms:
+            return True
+
+        evidence_text = normalize_text(
+            " ".join(
+                f"{hit.chunk.section} {hit.chunk.content}"
+                for hit in hits[: min(3, len(hits))]
+            )
+        )
+        matched_terms = {term for term in query_terms if term in evidence_text}
+        match_count = len(matched_terms)
+        coverage = match_count / max(1, len(query_terms))
+
+        if len(query_terms) <= 2:
+            return match_count >= 1
+        if len(query_terms) <= 5:
+            return match_count >= 2 or coverage >= 0.5
+        return match_count >= 2 and coverage >= 0.25
+
+    def _question_evidence_terms(self, question: str) -> list[str]:
+        return meaningful_query_terms(question)
 
     def _clean_model_answer(self, answer: str) -> str:
         cleaned = normalize_text(answer)

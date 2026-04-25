@@ -10,6 +10,7 @@ __pycache__/
 .venv/
 venv/
 env/
+.ci_tmp_env/
 
 # Environment and local settings
 .env
