@@ -55,6 +55,7 @@ class ReActAgent:
             grounded=answer_result.grounded,
             citations=answer_result.citations,
             steps=steps,
+            answer_sections=answer_result.answer_sections,
             voice_job=voice_job,
             agent_mode="single",
             question_type=answer_result.question_type,

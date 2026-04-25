@@ -23,8 +23,15 @@ class QuestionPolicyTests(unittest.TestCase):
     def test_classify_comparison_question(self) -> None:
         service = QuestionPolicyService()
         self.assertEqual(
-            service.classify("抢劫和抢夺的区别是什么？"),
+            service.classify("抢劫罪和抢夺罪有什么区别？"),
             "confusing",
+        )
+
+    def test_constitutive_elements_question_stays_direct(self) -> None:
+        service = QuestionPolicyService()
+        self.assertEqual(
+            service.classify("盗窃罪的构成要件是什么？"),
+            "direct_answer",
         )
 
 

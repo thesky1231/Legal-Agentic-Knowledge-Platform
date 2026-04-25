@@ -59,6 +59,7 @@ class CollaborativeTeamAgent:
             grounded=base_response.grounded,
             citations=base_response.citations,
             steps=steps,
+            answer_sections=base_response.answer_sections,
             voice_job=voice_job,
             agent_mode="team",
             review_summary=review_summary,

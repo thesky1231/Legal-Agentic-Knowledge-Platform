@@ -44,6 +44,7 @@ Once the service starts, open:
 - `GET http://localhost:8000/metrics`
 - `POST http://localhost:8000/documents/ingest`
 - `POST http://localhost:8000/rag/query`
+- `POST http://localhost:8000/agent/auto/run`
 - `POST http://localhost:8000/agent/run`
 - `POST http://localhost:8000/agent/team/run`
 - `GET http://localhost:8000/runs`

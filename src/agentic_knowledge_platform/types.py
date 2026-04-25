@@ -78,10 +78,17 @@ class RetrievalHit:
 
 
 @dataclass(slots=True)
+class AnswerSection:
+    title: str
+    body: str
+
+
+@dataclass(slots=True)
 class AnswerResult:
     answer: str
     grounded: bool
     citations: list[Citation]
+    answer_sections: list[AnswerSection] = field(default_factory=list)
     reasoning: list[str] = field(default_factory=list)
     question_type: QuestionType = "direct_answer"
     confidence: str = "medium"
@@ -140,6 +147,7 @@ class AgentResponse:
     grounded: bool
     citations: list[Citation]
     steps: list[AgentStep]
+    answer_sections: list[AnswerSection] = field(default_factory=list)
     voice_job: VoiceJob | None = None
     agent_mode: str = "single"
     review_summary: str | None = None

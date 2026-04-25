@@ -7,8 +7,10 @@ from agentic_knowledge_platform.agents.team import CollaborativeTeamAgent, Revie
 from agentic_knowledge_platform.core.config import Settings, get_settings
 from agentic_knowledge_platform.core.resilience import RetryPolicy, SlidingWindowRateLimiter
 from agentic_knowledge_platform.services.chunking import StructureAwareChunker
+from agentic_knowledge_platform.services.bootstrap_snapshot import load_snapshot_into_knowledge_base
 from agentic_knowledge_platform.services.embeddings import HashEmbeddingService
 from agentic_knowledge_platform.services.evaluation import EvaluationService
+from agentic_knowledge_platform.services.execution_router import ExecutionRouter
 from agentic_knowledge_platform.services.model_router import ModelRouter, TemplateModelClient
 from agentic_knowledge_platform.services.observability import MetricsCollector
 from agentic_knowledge_platform.services.ollama import OllamaModelClient
@@ -39,6 +41,7 @@ class ServiceContainer:
     voice_pipeline: VoicePipeline
     agent: ReActAgent
     team_agent: CollaborativeTeamAgent
+    execution_router: ExecutionRouter
     run_store: RunStore
     metrics: MetricsCollector
     evaluation_service: EvaluationService
@@ -76,8 +79,22 @@ def build_container(settings: Settings | None = None) -> ServiceContainer:
         model_router=model_router,
         grounded_threshold=active_settings.grounded_threshold,
         default_top_k=active_settings.default_top_k,
+        embedding_batch_size=active_settings.embedding_batch_size,
     )
-    if active_settings.bootstrap_knowledge_paths.strip():
+    snapshot_loaded = False
+    if active_settings.bootstrap_snapshot_path.strip():
+        load_snapshot_into_knowledge_base(
+            knowledge_base=knowledge_base,
+            vector_store=vector_store,
+            path=active_settings.bootstrap_snapshot_path,
+            embedding_batch_size=active_settings.embedding_batch_size,
+        )
+        snapshot_loaded = True
+    if (
+        not snapshot_loaded
+        and active_settings.bootstrap_knowledge_paths.strip()
+        and active_settings.bootstrap_mode == "sync"
+    ):
         bootstrap_local_corpus(
             knowledge_base=knowledge_base,
             path_spec=active_settings.bootstrap_knowledge_paths,
@@ -93,6 +110,12 @@ def build_container(settings: Settings | None = None) -> ServiceContainer:
         react_agent=agent,
         voice_pipeline=voice_pipeline,
         reviewer=ReviewAgent(),
+    )
+    execution_router = ExecutionRouter(
+        knowledge_base=knowledge_base,
+        single_agent=agent,
+        team_agent=team_agent,
+        question_policy=knowledge_base.question_policy,
     )
     run_store = _build_run_store(active_settings)
     metrics = MetricsCollector()
@@ -114,6 +137,7 @@ def build_container(settings: Settings | None = None) -> ServiceContainer:
         voice_pipeline=voice_pipeline,
         agent=agent,
         team_agent=team_agent,
+        execution_router=execution_router,
         run_store=run_store,
         metrics=metrics,
         evaluation_service=evaluation_service,

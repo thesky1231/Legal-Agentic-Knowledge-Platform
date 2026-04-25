@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Iterable
+from collections.abc import Iterator
 
 from agentic_knowledge_platform.core.resilience import CircuitBreaker, RetryPolicy, SlidingWindowRateLimiter
 from agentic_knowledge_platform.services.openai_compatible import ModelClient
@@ -141,5 +142,55 @@ class ModelRouter:
             )
         raise RuntimeError(f"no available model route for task {request.task}: {'; '.join(errors)}")
 
+    def stream_generate(self, request: ModelRequest) -> tuple[str, str, Iterator[str]]:
+        errors: list[str] = []
+        routes = self.task_routes.get(request.task, list(self.clients))
+        for client_name in routes:
+            client = self.clients[client_name]
+            if request.task not in client.supported_tasks:
+                errors.append(f"{client_name} does not support {request.task}")
+                continue
+            breaker = self.breakers[client_name]
+            if not breaker.allow_request():
+                errors.append(f"{client_name} breaker open")
+                continue
+            if not self.rate_limiter.allow(f"{client_name}:{request.task}:{request.session_id}"):
+                errors.append(f"{client_name} rate limited")
+                continue
+
+            def iterator() -> Iterator[str]:
+                try:
+                    stream_method = getattr(client, "stream_generate", None)
+                    if callable(stream_method):
+                        for chunk in stream_method(request):
+                            yield chunk
+                    else:
+                        output = self.retry_policy.call(lambda: client.generate(request), exceptions=(RuntimeError, ValueError))
+                        for chunk in self._chunk_output(output):
+                            yield chunk
+                except Exception:
+                    breaker.record_failure()
+                    raise
+                else:
+                    breaker.record_success()
+
+            return client.name, client_name, iterator()
+        raise RuntimeError(f"no available model route for task {request.task}: {'; '.join(errors)}")
+
     def breaker_state(self, client_name: str) -> dict[str, float | int | str]:
         return self.breakers[client_name].snapshot()
+
+    def _chunk_output(self, output: str) -> Iterator[str]:
+        normalized = normalize_text(output)
+        if not normalized:
+            return
+        sentences = sentence_split(normalized)
+        if sentences:
+            for sentence in sentences:
+                cleaned = normalize_text(sentence)
+                if cleaned:
+                    yield cleaned
+            return
+        chunk_size = 28
+        for start in range(0, len(normalized), chunk_size):
+            yield normalized[start : start + chunk_size]

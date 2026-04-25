@@ -9,8 +9,10 @@ from functools import lru_cache
 class Settings:
     service_name: str = os.getenv("SERVICE_NAME", "Agentic Knowledge Platform")
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
+    frontend_dist_dir: str = os.getenv("FRONTEND_DIST_DIR", "")
     embedding_dimensions: int = int(os.getenv("EMBEDDING_DIMENSIONS", "96"))
-    default_top_k: int = int(os.getenv("DEFAULT_TOP_K", "4"))
+    default_top_k: int = int(os.getenv("DEFAULT_TOP_K", "8"))
+    embedding_batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "450"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "80"))
     grounded_threshold: float = float(os.getenv("GROUNDED_THRESHOLD", "0.22"))
@@ -40,7 +42,9 @@ class Settings:
     run_store_backend: str = os.getenv("RUN_STORE_BACKEND", "memory")
     sqlite_path: str = os.getenv("SQLITE_PATH", "./data/agent_platform.db")
     bootstrap_knowledge_paths: str = os.getenv("BOOTSTRAP_KNOWLEDGE_PATHS", "")
+    bootstrap_snapshot_path: str = os.getenv("BOOTSTRAP_SNAPSHOT_PATH", "")
     bootstrap_tenant_id: str = os.getenv("BOOTSTRAP_TENANT_ID", "demo")
+    bootstrap_mode: str = os.getenv("BOOTSTRAP_MODE", "sync")
     api_auth_enabled: bool = os.getenv("API_AUTH_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
     api_keys: str = os.getenv("API_KEYS", "demo-key")
 

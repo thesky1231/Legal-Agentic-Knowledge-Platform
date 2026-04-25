@@ -29,11 +29,11 @@ class QuestionPolicyService:
 
     def top_k_for(self, question_type: QuestionType) -> int:
         mapping = {
-            "direct_answer": 3,
+            "direct_answer": 4,
             "definition": 4,
-            "confusing": 6,
-            "complex_reasoning": 5,
-            "should_refuse": 3,
+            "confusing": 8,
+            "complex_reasoning": 8,
+            "should_refuse": 4,
         }
         return mapping[question_type]
 
@@ -41,13 +41,13 @@ class QuestionPolicyService:
         return (
             "结论：根据当前检索到的证据，暂时无法直接作出确定性结论。\n"
             "依据：这类问题通常需要结合更具体的案件事实、行为方式、主观故意、结果后果和证据情况综合分析。\n"
-            "说明：为避免误导，系统在证据不足或问题本身要求直接定性、量刑时会优先采取保守回答策略。"
+            "说明：为避免误导，系统在证据不足或问题本身要求直接定性、量刑时会优先采用保守回答策略。"
         )
 
     def build_low_confidence_answer(self) -> str:
         return (
             "结论：当前证据不足，系统暂时无法给出高置信度回答。\n"
-            "依据：已检索到的材料与问题之间的对应关系还不够充分，无法支撑进一步推断。\n"
+            "依据：已检索到的材料与问题之间的对应关系还不够充分，无法支持进一步推断。\n"
             "说明：建议补充更完整的文档、案件事实或更明确的问题描述。"
         )
 
@@ -94,7 +94,10 @@ class QuestionPolicyService:
         return any(left in question and right in question for left, right in self.confusing_pairs)
 
     def _is_definition_case(self, question: str) -> bool:
+        if "构成要件" in question:
+            return False
         definition_keywords = (
+            "什么是",
             "是什么",
             "怎么理解",
             "叫什么",
@@ -116,8 +119,10 @@ class QuestionPolicyService:
             "如何定性",
             "如何处理",
             "是否构成",
+            "应当如何判断",
+            "应如何判断",
         )
-        multi_clause_keywords = ("如果", "同时", "并且", "造成", "超过", "结合")
+        multi_clause_keywords = ("如果", "同时", "并且", "造成", "超过", "结合", "先", "后")
         if any(keyword in question for keyword in reasoning_keywords):
             return True
         return sum(1 for keyword in multi_clause_keywords if keyword in question) >= 2

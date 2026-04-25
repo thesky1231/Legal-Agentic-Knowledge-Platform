@@ -31,6 +31,10 @@ class FakeHttpClient:
         self.calls.append(("PUT", path, payload))
         return self.responses.pop(0) if self.responses else {}
 
+    def stream(self, path: str, payload: dict[str, object]):
+        self.calls.append(("STREAM", path, payload))
+        return iter(self.responses.pop(0))
+
 
 class FakeQdrantStore(QdrantRestVectorStore):
     def __init__(self) -> None:
@@ -104,6 +108,52 @@ class RemoteAdapterTests(unittest.TestCase):
 
         self.assertEqual(vector, [0.1, 0.2, 0.3])
         self.assertEqual(service.http.calls[0][1], "/v1/embeddings")
+
+    def test_openai_compatible_model_client_streams_responses_delta(self) -> None:
+        client = OpenAICompatibleModelClient(
+            name="primary-router",
+            model="gpt-test",
+            base_url="https://api.example.com",
+            api_key="secret",
+            endpoint_mode="responses",
+            supported_tasks={"qa"},
+            timeout_seconds=5,
+        )
+        client.http = FakeHttpClient(
+            [[
+                {"type": "response.output_text.delta", "delta": "抢劫罪"},
+                {"type": "response.output_text.delta", "delta": "通常涉及暴力或胁迫。"},
+            ]]
+        )
+
+        chunks = list(client.stream_generate(ModelRequest(task="qa", prompt="抢劫是什么？", context_blocks=["法条内容"])))
+
+        self.assertEqual(["抢劫罪", "通常涉及暴力或胁迫。"], chunks)
+        self.assertEqual(client.http.calls[0][0], "STREAM")
+        self.assertEqual(client.http.calls[0][1], "/v1/responses")
+
+    def test_openai_compatible_embedding_service_splits_large_batches(self) -> None:
+        service = OpenAICompatibleEmbeddingService(
+            base_url="https://api.example.com",
+            api_key="secret",
+            model="text-embedding-3-small",
+            dimensions=3,
+            max_batch_size=10,
+            timeout_seconds=5,
+        )
+        service.http = FakeHttpClient(
+            [
+                {"data": [{"embedding": [float(index), 0.0, 1.0]} for index in range(10)]},
+                {"data": [{"embedding": [10.0, 0.0, 1.0]}, {"embedding": [11.0, 0.0, 1.0]}]},
+            ]
+        )
+
+        vectors = service.batch_embed([f"text-{index}" for index in range(12)])
+
+        self.assertEqual(12, len(vectors))
+        self.assertEqual(2, len(service.http.calls))
+        self.assertEqual(10, len(service.http.calls[0][2]["input"]))
+        self.assertEqual(2, len(service.http.calls[1][2]["input"]))
 
     def test_qdrant_store_maps_search_payload_back_to_chunks(self) -> None:
         store = FakeQdrantStore()

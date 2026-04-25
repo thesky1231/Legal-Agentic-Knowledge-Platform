@@ -182,12 +182,15 @@ Core endpoints exposed by the service:
 - `GET /documents`
 - `POST /documents/ingest`
 - `POST /rag/query`
+- `POST /agent/auto/run`
 - `POST /agent/run`
 - `POST /agent/team/run`
 - `POST /voice/narrate`
 - `POST /workflow/demo`
 - `GET /runs`
 - `POST /evals/run`
+
+`/agent/auto/run` is the product-facing path. It classifies the legal question, tries ordinary RAG for simpler questions, and routes confusing, high-risk, or low-confidence cases to the agent workflows.
 
 `/health` reports which backend adapters are active. `/ops/overview` exposes recent request and pipeline summaries. `/metrics` exports Prometheus-style metrics text.
 
